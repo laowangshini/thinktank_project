@@ -1,0 +1,185 @@
+<!-- webui/templates/webui/index.html -->
+{% extends "base.html" %}
+{% load static %} <!-- 如果模板中引用了静态文件，需要加载此标签 -->
+
+{% block title %}首页 - 智库内容管理系统{% endblock %}
+
+{% block content %}
+<!-- 欢迎横幅 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card stats-card">
+            <div class="card-body text-center py-5">
+                <h1 class="display-4 mb-3">
+                    <i class="fas fa-university me-3"></i>智库内容管理系统
+                </h1>
+                <p class="lead mb-4">专业的智库内容爬取、管理和摘编平台</p>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h3 class="mb-0">{{ stats.total_articles }}</h3>
+                            <small>总文章数</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h3 class="mb-0">{{ stats.total_thinktanks }}</h3>
+                            <small>智库数量</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h3 class="mb-0">{{ stats.total_tasks }}</h3>
+                            <small>爬取任务</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h3 class="mb-0">{{ stats.active_tasks }}</h3>
+                            <small>活跃任务</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 最新文章 -->
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>
+                <i class="fas fa-newspaper me-2"></i>最新文章
+            </h2>
+            <a href="{% url 'webui:batch_select' %}" class="btn btn-outline-success">
+                选择性摘编 <i class="fas fa-check-square ms-1"></i>
+            </a>
+        </div>
+
+        {% if articles %}
+            <div class="row">
+                {% for article in articles %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="{% url 'webui:article_detail' article_id=article.id %}" class="article-title">
+                                    {{ article.title|truncatechars:80 }}
+                                </a>
+                            </h5>
+                            
+
+                            <div class="mb-2">
+                                <span class="badge bg-primary">{{ article.thinktank.name }}</span>
+                            </div>
+
+                            {% if article.summary %}
+                                <p class="card-text text-muted">
+                                    {{ article.summary|truncatechars:100 }}
+                                </p>
+                            {% endif %}
+
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    {% if article.publish_date %}
+                                        {{ article.publish_date|date:"Y-m-d" }}
+                                    {% else %}
+                                        {{ article.crawl_date|date:"Y-m-d" }}
+                                    {% endif %}
+                                </small>
+                                <small class="text-muted">
+                                    <i class="fas fa-eye me-1"></i>
+                                    {{ article.view_count|default:0 }}
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="card-footer bg-transparent">
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'webui:article_detail' article_id=article.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-read me-1"></i>阅读
+                                </a>
+                                {% if article.digest and article.digest.is_fully_filled %}  <!-- ✅ 使用模型属性 -->
+                                    <a href="{% url 'webui:digest_detail' article_id=article.id %}" class="btn btn-sm btn-success">
+                                        <i class="fas fa-check me-1"></i>已摘编
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'webui:digest_edit' article_id=article.id %}" class="btn btn-sm btn-outline-warning">
+                                        <i class="fas fa-edit me-1"></i>摘编
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- 空状态 -->
+        {% endif %}
+    </div>
+</div>
+
+<!-- 快速操作 -->
+<div class="row mt-5">
+    <div class="col-12">
+        <h3 class="mb-3">
+            <i class="fas fa-bolt me-2"></i>快速操作
+        </h3>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-newspaper fa-2x text-primary mb-3"></i>
+                        <h5>浏览文章</h5>
+                        <p class="text-muted">查看已爬取的文章内容</p>
+                        <a href="{% url 'webui:articles' %}" class="btn btn-primary">进入</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-building fa-2x text-success mb-3"></i>
+                        <h5>智库管理</h5>
+                        <p class="text-muted">查看和管理智库信息</p>
+                        <a href="{% url 'webui:thinktanks' %}" class="btn btn-success">进入</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-cogs fa-2x text-warning mb-3"></i>
+                        <h5>任务管理</h5>
+                        <p class="text-muted">管理爬取任务设置</p>
+                        <a href="{% url 'webui:tasks' %}" class="btn btn-warning">进入</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-search fa-2x text-info mb-3"></i>
+                        <h5>搜索功能</h5>
+                        <p class="text-muted">搜索感兴趣的文章</p>
+                        <button class="btn btn-info" onclick="document.querySelector('input[name=q]').focus()">使用</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-database fa-2x text-danger mb-3"></i>
+                        <h5>进入 Django</h5>
+                        <p class="text-muted">Django 管理后台</p>
+                        <a href="{% url 'admin:index' %}" class="btn btn-danger">进入</a>  <!-- 指向 Django Admin -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

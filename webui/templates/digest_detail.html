@@ -1,0 +1,291 @@
+<!-- webui/templates/digest_detail.html -->
+{% extends "base.html" %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}摘编详情 - {{ article.title }} - 智库内容管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-file-text me-2"></i>文章摘编</h5>
+                    <div>
+                        {% if digest %}
+                            {% if digest.digest_summary or digest.key_points or digest.editor_notes %}
+                                <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>已摘编</span>
+                            {% else %}
+                                <span class="badge bg-warning"><i class="fas fa-exclamation-triangle me-1"></i>摘编草稿</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-warning"><i class="fas fa-exclamation-triangle me-1"></i>暂无摘编</span>
+                        {% endif %}
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body">
+                {% if digest %}
+                    <div class="mb-4">
+                        <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-quote-left me-2 text-primary"></i>摘编摘要</h6>
+                        <div class="bg-light p-3 rounded">
+                            <p class="mb-0 lh-lg">{{ digest.digest_summary|nl2br|safe }}</p>
+                        </div>
+                    </div>
+
+                    {% if digest.key_points %}
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-list-ul me-2 text-success"></i>关键要点</h6>
+                            <div class="key-points">
+                                {% for point in digest.key_points|splitlines %}
+                                    {% if point.strip %}
+                                        <div class="d-flex align-items-start mb-2">
+                                            <i class="fas fa-chevron-right text-success me-2 mt-1"></i>
+                                            <span>{{ point.strip }}</span>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if digest.editor_notes %}
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-sticky-note me-2 text-info"></i>编辑备注</h6>
+                            <div class="bg-info bg-opacity-10 p-3 rounded">
+                                <p class="mb-0 text-muted small">{{ digest.editor_notes|nl2br|safe }}</p>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <div class="border-top pt-3 mt-4">
+                        <div class="row text-muted small">
+                            <div class="col-md-6">
+                                <div class="mb-1">
+                                    <i class="fas fa-user me-2"></i>
+                                    <strong>编辑者:</strong>
+                                    {% if digest.editor %}
+                                        {{ digest.editor.full_name|default:digest.editor.username }}
+                                    {% else %}
+                                        未知
+                                    {% endif %}
+                                </div>
+                                <div class="mb-1">
+                                    <i class="fas fa-calendar-plus me-2"></i>
+                                    <strong>创建时间:</strong> {{ digest.created_at|date:"Y-m-d H:i:s" }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                {% if digest.updated_at != digest.created_at %}
+                                    <div class="mb-1">
+                                        <i class="fas fa-edit me-2"></i>
+                                        <strong>更新时间:</strong> {{ digest.updated_at|date:"Y-m-d H:i:s" }}
+                                    </div>
+                                {% endif %}
+                                <div class="mb-1">
+                                    <i class="fas fa-chart-bar me-2"></i>
+                                    <strong>字数统计:</strong> 约 {{ digest.digest_summary|length }} 字
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-edit fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无摘编内容</h5>
+                        <p class="text-muted">该文章尚未进行摘编处理</p>
+                        <a href="{% url 'webui:digest_edit' article_id=article.id %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>创建摘编
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-newspaper me-2"></i>原文信息</h6>
+            </div>
+            <div class="card-body">
+                <h6 class="card-title">
+                    <a href="{% url 'webui:article_detail' article_id=article.id %}" class="text-decoration-none">
+                        {{ article.title }}
+                    </a>
+                </h6>
+
+                <div class="mb-3">
+                    <div class="row small">
+                        <div class="col-4 text-muted">来源:</div>
+                        <div class="col-8">
+                            <a href="{% url 'webui:thinktank_detail' thinktank_id=article.thinktank.id %}" class="text-decoration-none">
+                                {{ article.thinktank.name }}
+                            </a>
+                        </div>
+                    </div>
+                    {% if article.content_type %}
+                    <div class="row small">
+                        <div class="col-4 text-muted">类型:</div>
+                        <div class="col-8">{{ article.content_type }}</div>
+                    </div>
+                    {% endif %}
+                    {% if article.author %}
+                    <div class="row small">
+                        <div class="col-4 text-muted">作者:</div>
+                        <div class="col-8">{{ article.author }}</div>
+                    </div>
+                    {% endif %}
+                    {% if article.publish_date %}
+                    <div class="row small">
+                        <div class="col-4 text-muted">发布:</div>
+                        <div class="col-8">{{ article.publish_date|date:"Y-m-d" }}</div>
+                    </div>
+                    {% endif %}
+                    <div class="row small">
+                        <div class="col-4 text-muted">浏览:</div>
+                        <div class="col-8">{{ article.view_count|default:0 }} 次</div>
+                    </div>
+                </div>
+
+                {% if article.summary %}
+                    <div class="mb-3">
+                        <strong class="small">原文摘要:</strong>
+                        <div class="bg-light p-2 rounded mt-1 small text-muted">
+                            {{ article.summary|truncatechars:150 }}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-tools me-2"></i>操作</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if digest %}
+                        <a href="{% url 'webui:digest_edit' article_id=article.id %}" class="btn btn-warning">
+                            <i class="fas fa-edit me-2"></i>编辑摘编
+                        </a>
+                    {% else %}
+                        <a href="{% url 'webui:digest_edit' article_id=article.id %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>创建摘编
+                        </a>
+                    {% endif %}
+
+                    <a href="{% url 'webui:article_detail' article_id=article.id %}" class="btn btn-outline-primary">
+                        <i class="fas fa-eye me-2"></i>查看原文
+                    </a>
+
+                    <a href="{{ article.url }}" target="_blank" class="btn btn-outline-secondary">
+                        <i class="fas fa-external-link-alt me-2"></i>访问原文链接
+                    </a>
+
+                    {% if digest %}
+                        <button class="btn btn-outline-info" onclick="exportDigest()">
+                            <i class="fas fa-download me-2"></i>导出摘编
+                        </button>
+                        <button class="btn btn-outline-success" onclick="shareDigest()">
+                            <i class="fas fa-share me-2"></i>分享摘编
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if digest %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>摘编统计</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="border-end">
+                            <h6 class="mb-0 text-primary">{{ digest.digest_summary|length }}</h6>
+                            <small class="text-muted">摘要字数</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <h6 class="mb-0 text-success">{{ digest.key_points|count_non_empty_lines }}</h6>
+                        <small class="text-muted">关键要点</small>
+                    </div>
+                </div>
+                <div class="mt-3 text-center">
+                    <small class="text-muted">
+                        压缩比: {{ compression_ratio|floatformat:1 }}%
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'webui:articles' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>返回文章列表
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportDigest() {
+    const title = "{{ article.title }}";
+    const thinktank = "{{ article.thinktank.name }}";
+    let summary = ``;
+    let keyPoints = ``;
+    let digestTime = ``;
+    {% if digest %}
+        summary = `{{ digest.digest_summary|escapejs }}`;
+        keyPoints = `{{ digest.key_points|escapejs }}`;
+        digestTime = `{{ digest.created_at|date:"Y-m-d H:i:s" }}`;
+    {% endif %}
+    let content = `文章标题: ${title}\n`;
+    content += `来源智库: ${thinktank}\n`;
+    content += `摘编时间: ${digestTime}\n\n`;
+    content += `摘编摘要:\n${summary}\n\n`;
+    if (keyPoints.trim()) { content += `关键要点:\n${keyPoints}\n\n`; }
+    content += `原文链接: {{ article.url }}`;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `摘编_${title.substring(0, 20).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}.txt`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+function shareDigest() {
+    let shareText = "";
+    {% if digest %} shareText = "{{ digest.digest_summary|truncatechars:100 }}"; {% endif %}
+    if (navigator.share) {
+        navigator.share({
+            title: "{{ article.title }}",
+            text: shareText + "...",
+            url: window.location.href
+        }).catch(err => console.log('分享失败:', err));
+    } else {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            alert('链接已复制到剪贴板');
+        }).catch(err => {
+            console.log('复制失败:', err);
+            prompt('请手动复制链接:', window.location.href);
+        });
+    }
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.key-points { line-height: 1.8; }
+.key-points .fas { font-size: 0.8rem; }
+.lh-lg { line-height: 1.8 !important; }
+</style>
+{% endblock %}

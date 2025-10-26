@@ -1,0 +1,299 @@
+<!-- webui/templates/batch_select.html -->
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}批量选择文章 - 智库内容管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-check-square me-2"></i>批量选择文章
+    </h2>
+    <div class="text-muted">
+        共 {{ pagination.total }} 篇文章，第 {{ articles.number }} / {{ pagination.total_pages }} 页
+    </div>
+</div>
+
+<!-- 筛选表单 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">开始日期</label>
+                <input type="date" name="start_date" class="form-control" value="{{ current_filters.start_date }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">结束日期</label>
+                <input type="date" name="end_date" class="form-control" value="{{ current_filters.end_date }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">智库</label>
+                <select name="thinktank" class="form-select">
+                    <option value="">全部智库</option>
+                    {% for tt in thinktanks %}
+                        <option value="{{ tt.id }}" {% if current_filters.thinktank_id|add:0 == tt.id %}selected{% endif %}>
+                            {{ tt.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">筛选</button>
+                <a href="{% url 'webui:batch_select' %}" class="btn btn-outline-secondary ms-2">重置</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 文章列表 -->
+<div class="row">
+    {% for article in articles %}
+    <div class="col-12 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <!-- 复选框 -->
+                    <div class="col-auto">
+                        <input type="checkbox" 
+                               class="article-checkbox" 
+                               data-article-id="{{ article.id }}" 
+                               data-article-title="{{ article.title }}"
+                               id="article_{{ article.id }}">
+                    </div>
+                    <div class="col">
+                        <h5 class="card-title mb-2">
+                            <label for="article_{{ article.id }}" class="mb-0">
+                                <a href="{% url 'webui:article_detail' article_id=article.id %}" class="article-title">
+                                    {{ article.title }}
+                                </a>
+                            </label>
+                        </h5>
+
+                        <div class="mb-2">
+                            <span class="badge bg-primary">{{ article.thinktank.name }}</span>
+                            {% if article.digest and article.digest.is_fully_filled %}
+                                <span class="badge bg-success">已摘编</span>
+                            {% else %}
+                                <span class="badge bg-warning">待摘编</span>
+                            {% endif %}
+                        </div>
+
+                        {% if article.summary %}
+                            <p class="card-text text-muted mb-2">
+                                {{ article.summary|truncatechars:200 }}
+                            </p>
+                        {% endif %}
+
+                        <div class="text-muted small">
+                            <i class="fas fa-calendar me-1"></i>
+                            {% if article.publish_date %}
+                                {{ article.publish_date|date:"Y-m-d" }}
+                            {% else %}
+                                {{ article.crawl_date|date:"Y-m-d" }}
+                            {% endif %}
+                            <span class="mx-2">|</span>
+                            <i class="fas fa-eye me-1"></i>
+                            {{ article.view_count|default:0 }} 次浏览
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- 分页导航 -->
+{% if articles.has_other_pages %}
+<nav aria-label="文章分页" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if articles.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ articles.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                    <i class="fas fa-chevron-left"></i> 上一页
+                </a>
+            </li>
+        {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">
+                    <i class="fas fa-chevron-left"></i> 上一页
+                </span>
+            </li>
+        {% endif %}
+
+        {% with articles.number as current_page %}
+        {% for page_num in articles.paginator.page_range %}
+             {% if page_num == 1 or page_num == articles.paginator.num_pages %}
+                  {% if page_num == current_page %}
+                      <li class="page-item active">
+                          <span class="page-link">{{ page_num }}</span>
+                      </li>
+                  {% else %}
+                      <li class="page-item">
+                          <a class="page-link" href="?page={{ page_num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ page_num }}</a>
+                      </li>
+                  {% endif %}
+             {% elif page_num >= current_page|add:"-2" and page_num <= current_page|add:"2" %}
+                  {% if page_num == current_page %}
+                      <li class="page-item active">
+                          <span class="page-link">{{ page_num }}</span>
+                      </li>
+                  {% else %}
+                      <li class="page-item">
+                          <a class="page-link" href="?page={{ page_num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ page_num }}</a>
+                      </li>
+                  {% endif %}
+             {% elif page_num == current_page|add:"-3" and current_page > 4 %}
+                  <li class="page-item disabled">
+                      <span class="page-link">...</span>
+                  </li>
+             {% elif page_num == current_page|add:"3" and current_page < articles.paginator.num_pages|add:"-3" %}
+                  <li class="page-item disabled">
+                      <span class="page-link">...</span>
+                  </li>
+             {% endif %}
+        {% endfor %}
+        {% endwith %}
+
+        {% if articles.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ articles.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                    下一页 <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+        {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">
+                    下一页 <i class="fas fa-chevron-right"></i>
+                </span>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.selected-counter {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #fff;
+    border: 2px solid #28a745;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    min-width: 200px;
+    text-align: center;
+}
+.selected-counter h5 {
+    margin: 0 0 10px 0;
+    color: #28a745;
+}
+.selected-counter .count {
+    font-size: 24px;
+    font-weight: bold;
+    color: #007bff;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 跨页保持选择状态
+class ArticleSelector {
+    constructor() {
+        this.selectedArticles = new Map(); // 存储已选文章 {id: {id, title}}
+        this.loadFromStorage();
+        this.init();
+    }
+
+    init() {
+        // 绑定复选框事件
+        document.querySelectorAll('.article-checkbox').forEach(checkbox => {
+            const articleId = checkbox.dataset.articleId;
+            const articleTitle = checkbox.dataset.articleTitle;
+            
+            // 恢复选中状态
+            if (this.selectedArticles.has(articleId)) {
+                checkbox.checked = true;
+            }
+
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.selectedArticles.set(articleId, {
+                        id: articleId,
+                        title: articleTitle
+                    });
+                } else {
+                    this.selectedArticles.delete(articleId);
+                }
+                this.saveToStorage();
+                this.updateCounter();
+            });
+        });
+
+        // 初始化计数器
+        this.updateCounter();
+
+        // 开始摘编按钮
+        const startBtn = document.getElementById('startBatchDigest');
+        if (startBtn) {
+            startBtn.addEventListener('click', () => {
+                if (this.selectedArticles.size === 0) {
+                    alert('请至少选择一篇文章！');
+                    return;
+                }
+                // 跳转到批量摘编页面
+                const articleIds = Array.from(this.selectedArticles.keys()).join(',');
+                window.location.href = `{% url 'webui:batch_digest' %}?article_ids=${articleIds}`;
+            });
+        }
+    }
+
+    updateCounter() {
+        const count = this.selectedArticles.size;
+        let counterDiv = document.getElementById('selectedCounter');
+        
+        if (!counterDiv) {
+            counterDiv = document.createElement('div');
+            counterDiv.id = 'selectedCounter';
+            counterDiv.className = 'selected-counter';
+            counterDiv.innerHTML = `
+                <h5><i class="fas fa-check-square me-2"></i>已选择文章</h5>
+                <div class="count">${count}</div>
+                <button id="startBatchDigest" class="btn btn-success btn-sm mt-2 w-100">
+                    <i class="fas fa-edit me-1"></i>开始摘编
+                </button>
+            `;
+            document.body.appendChild(counterDiv);
+        } else {
+            counterDiv.querySelector('.count').textContent = count;
+        }
+    }
+
+    saveToStorage() {
+        localStorage.setItem('selectedArticles', JSON.stringify(Array.from(this.selectedArticles.entries())));
+    }
+
+    loadFromStorage() {
+        const saved = localStorage.getItem('selectedArticles');
+        if (saved) {
+            try {
+                const entries = JSON.parse(saved);
+                this.selectedArticles = new Map(entries);
+            } catch (e) {
+                console.error('加载已选文章失败:', e);
+            }
+        }
+    }
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    new ArticleSelector();
+});
+</script>
+{% endblock %}

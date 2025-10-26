@@ -1,0 +1,290 @@
+<!-- webui/templates/digest_edit.html -->
+{% extends "base.html" %}
+{% load static %} <!-- 如果模板中有用到静态文件 -->
+
+{% block title %}{% if digest %}编辑摘编{% else %}创建摘编{% endif %} - {{ article.title }} - 智库内容管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-6">
+        <!-- 原文信息 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-file-text me-2"></i>原文信息</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="card-title">{{ article.title }}</h6>
+
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-sm-4"><strong>来源:</strong></div>
+                        <div class="col-sm-8">{{ article.thinktank.name }}</div>
+                    </div>
+                    {% if article.content_type %}
+                    <div class="row">
+                        <div class="col-sm-4"><strong>类型:</strong></div>
+                        <div class="col-sm-8">{{ article.content_type }}</div>
+                    </div>
+                    {% endif %}
+                    {% if article.author %}
+                    <div class="row">
+                        <div class="col-sm-4"><strong>作者:</strong></div>
+                        <div class="col-sm-8">{{ article.author }}</div>
+                    </div>
+                    {% endif %}
+                    {% if article.publish_date %}
+                    <div class="row">
+                        <div class="col-sm-4"><strong>发布:</strong></div>
+                        <div class="col-sm-8">
+                            <!-- 修改点1: strftime -> date 过滤器 -->
+                            {{ article.publish_date|date:"Y-m-d" }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+
+                {% if article.summary %}
+                    <div class="mb-3">
+                        <strong>原文摘要:</strong>
+                        <div class="bg-light p-2 rounded mt-1 small">
+                            {{ article.summary }}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <div class="mt-4">
+                    <h6><i class="fas fa-file-alt me-1"></i>原文正文</h6>
+                    <div class="bg-white border rounded p-3" style="max-height: 400px; overflow-y: auto; font-size: 14px; line-height: 1.6;">
+                        {% if article.content %}
+                            {{ article.content|safe }}
+                        {% else %}
+                            <div class="text-muted">暂无正文内容。</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <!-- 修改点2: url_for -> url -->
+                    <a href="{% url 'webui:article_detail' article_id=article.id %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye me-1"></i>查看详情
+                    </a>
+                    <a href="{{ article.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-external-link-alt me-1"></i>原文链接
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <!-- 摘编表单 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>
+                    {% if digest %}编辑摘编{% else %}创建摘编{% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- 修改点3: 添加 Django CSRF 保护 -->
+                <form method="POST">
+                    {% csrf_token %}
+                    <!-- 摘要 -->
+                    <div class="mb-3">
+                        <label for="digest_summary" class="form-label">
+                            <i class="fas fa-quote-left me-1"></i>摘编摘要 <span class="text-danger">*</span>
+                        </label>
+                        <!-- 修改点4: 处理表单回显 -->
+                        <textarea class="form-control" id="digest_summary" name="digest_summary"
+                                  rows="6" required placeholder="请输入文章的核心内容摘要...">{{ digest.digest_summary|default:'' }}</textarea>
+                        <div class="form-text">
+                            对原文进行精炼总结，突出核心观点和主要内容
+                        </div>
+                    </div>
+
+                    <!-- 要点 -->
+                    <div class="mb-3">
+                        <label for="key_points" class="form-label">
+                            <i class="fas fa-list-ul me-1"></i>关键要点
+                        </label>
+                        <!-- 修改点5: 处理表单回显 -->
+                        <textarea class="form-control" id="key_points" name="key_points"
+                                  rows="4" placeholder="请列出文章的关键要点，每行一个要点...">{{ digest.key_points|default:'' }}</textarea>
+                        <div class="form-text">
+                            提取文章中的重要观点、数据或结论，建议每行一个要点
+                        </div>
+                    </div>
+
+                    <!-- 编辑备注 -->
+                    <div class="mb-4">
+                        <label for="editor_notes" class="form-label">
+                            <i class="fas fa-sticky-note me-1"></i>编辑备注
+                        </label>
+                        <!-- 修改点6: 处理表单回显 -->
+                        <textarea class="form-control" id="editor_notes" name="editor_notes"
+                                  rows="3" placeholder="编辑过程中的备注信息（可选）...">{{ digest.editor_notes|default:'' }}</textarea>
+                        <div class="form-text">
+                            记录编辑过程中的想法、疑问或其他备注信息
+                        </div>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>保存摘编
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary ms-2" onclick="previewDigest()">
+                                <i class="fas fa-eye me-1"></i>预览
+                            </button>
+                        </div>
+                        <div>
+                            <!-- 修改点7: url_for -> url -->
+                            <a href="{% url 'webui:article_detail' article_id=article.id %}" class="btn btn-outline-danger">
+                                <i class="fas fa-times me-1"></i>取消
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 编辑提示 -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-lightbulb me-2"></i>编辑提示</h6>
+            </div>
+            <div class="card-body">
+                <ul class="small mb-0">
+                    <li>摘编摘要应简洁明了，突出文章的核心观点</li>
+                    <li>关键要点可以包括重要数据、结论、建议等</li>
+                    <li>保持客观中立，避免主观评价</li>
+                    <li>适当保留原文的专业术语和关键词</li>
+                    <li>字数建议：摘要200-500字，要点5-10条</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 预览模态框 -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">摘编预览</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 预览摘编
+function previewDigest() {
+    const summary = document.getElementById('digest_summary').value;
+    const keyPoints = document.getElementById('key_points').value;
+    const notes = document.getElementById('editor_notes').value;
+
+    let previewHtml = '<div class="preview-content">';
+
+    // 摘要
+    if (summary.trim()) {
+        previewHtml += '<div class="mb-4">';
+        previewHtml += '<h6><i class="fas fa-quote-left me-2"></i>摘编摘要</h6>';
+        // 修改点8: 使用 JS 的 replace 方法处理换行
+        previewHtml += '<div class="bg-light p-3 rounded">' + summary.replace(/\n/g, '<br>') + '</div>';
+        previewHtml += '</div>';
+    }
+
+    // 关键要点
+    if (keyPoints.trim()) {
+        previewHtml += '<div class="mb-4">';
+        previewHtml += '<h6><i class="fas fa-list-ul me-2"></i>关键要点</h6>';
+        previewHtml += '<ul class="list-group list-group-flush">';
+
+        const points = keyPoints.split('\n').filter(point => point.trim());
+        points.forEach(point => {
+            previewHtml += '<li class="list-group-item">' + point.trim() + '</li>';
+        });
+
+        previewHtml += '</ul></div>';
+    }
+
+    // 编辑备注
+    if (notes.trim()) {
+        previewHtml += '<div class="mb-4">';
+        previewHtml += '<h6><i class="fas fa-sticky-note me-2"></i>编辑备注</h6>';
+        // 修改点9: 使用 JS 的 replace 方法处理换行
+        previewHtml += '<div class="text-muted small">' + notes.replace(/\n/g, '<br>') + '</div>';
+        previewHtml += '</div>';
+    }
+
+    previewHtml += '</div>';
+
+    if (!summary.trim() && !keyPoints.trim() && !notes.trim()) {
+        previewHtml = '<div class="text-center text-muted py-4">暂无内容可预览</div>';
+    }
+
+    document.getElementById('previewContent').innerHTML = previewHtml;
+
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+}
+
+// 自动保存功能（可选）
+let autoSaveTimer;
+function setupAutoSave() {
+    const inputs = ['digest_summary', 'key_points', 'editor_notes'];
+
+    inputs.forEach(inputId => {
+        document.getElementById(inputId).addEventListener('input', function() {
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => {
+                // 这里可以实现自动保存到本地存储
+                console.log('Auto-saving...');
+            }, 5000);
+        });
+    });
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    setupAutoSave();
+
+    // 字数统计
+    const summaryTextarea = document.getElementById('digest_summary');
+    // 修改点10: 确保元素存在再操作
+    if (summaryTextarea) {
+         const summaryCounter = document.createElement('div');
+         summaryCounter.className = 'form-text text-end';
+         summaryTextarea.parentNode.appendChild(summaryCounter);
+
+         function updateCounter() {
+             const count = summaryTextarea.value.length;
+             summaryCounter.textContent = `已输入 ${count} 个字符`;
+
+             if (count > 1500) { // 调整阈值以匹配提示
+                 summaryCounter.className = 'form-text text-end text-danger';
+             } else if (count > 1000) {
+                 summaryCounter.className = 'form-text text-end text-warning';
+             } else {
+                 summaryCounter.className = 'form-text text-end text-muted';
+             }
+         }
+
+         summaryTextarea.addEventListener('input', updateCounter);
+         updateCounter(); // 初始化计数
+    }
+});
+</script>
+{% endblock %}

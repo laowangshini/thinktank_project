@@ -1,0 +1,238 @@
+<!-- webui/templates/webui/search.html -->
+{% extends "base.html" %}
+{% load static %} <!-- 如果模板中有用到静态文件 -->
+{% load custom_filters %} <!-- 加载自定义过滤器，如 highlight_search -->
+
+{% block title %}搜索结果 - 智库内容管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-search me-2"></i>搜索结果
+            </h2>
+            {% if query %}
+                <div class="text-muted">
+                    搜索 "{{ query }}" 找到 {{ articles|length }} 篇文章
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- 搜索框 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <!-- 修改点1: url_for -> url -->
+                <form method="GET" action="{% url 'webui:search' %}">
+                    <div class="input-group">
+                        <!-- 修改点2: 确保 query 变量正确传递 -->
+                        <input type="text" class="form-control form-control-lg"
+                               name="q" value="{{ query|default:'' }}"
+                               placeholder="请输入关键词搜索文章标题...">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search me-1"></i>搜索
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if query %}
+            {% if articles %}
+                <!-- 搜索结果 -->
+                <div class="row">
+                    {% for article in articles %}
+                    <div class="col-12 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <h5 class="card-title mb-2">
+                                            <!-- 修改点3: url_for -> url -->
+                                            <!-- 修改点4: highlight_search 过滤器 (假设已加载) -->
+                                            <!-- 修改点5: |safe 过滤器在 Django 中也叫 |safe -->
+                                            <a href="{% url 'webui:article_detail' article_id=article.id %}" class="article-title">
+                                                {{ article.title|highlight_search:query|safe }}
+                                            </a>
+                                        </h5>
+
+                                        <div class="mb-2">
+                                            <!-- 修改点6: url_for -> url -->
+                                            <a href="{% url 'webui:thinktank_detail' thinktank_id=article.thinktank.id %}"
+                                               class="badge bg-primary text-decoration-none">
+                                                {{ article.thinktank.name }}
+                                            </a>
+                                            {% if article.content_type %}
+                                                <span class="badge bg-secondary">{{ article.content_type }}</span>
+                                            {% endif %}
+                                            {% if article.is_processed %}
+                                                <span class="badge bg-success">已摘编</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">待摘编</span>
+                                            {% endif %}
+                                        </div>
+
+                                        {% if article.summary %}
+                                            <p class="card-text text-muted mb-2">
+                                                <!-- 修改点7: [:200] -> truncatechars -->
+                                                {{ article.summary|truncatechars:200 }}
+                                            </p>
+                                        {% endif %}
+
+                                        <div class="text-muted small">
+                                            {% if article.author %}
+                                                <i class="fas fa-user me-1"></i>{{ article.author }}
+                                                <span class="mx-2">|</span>
+                                            {% endif %}
+                                            <i class="fas fa-calendar me-1"></i>
+                                            {% if article.publish_date %}
+                                                <!-- 修改点8: strftime -> date -->
+                                                {{ article.publish_date|date:"Y-m-d" }}
+                                            {% else %}
+                                                <!-- 修改点8: strftime -> date -->
+                                                {{ article.crawl_date|date:"Y-m-d" }}
+                                            {% endif %}
+                                            <span class="mx-2">|</span>
+                                            <i class="fas fa-eye me-1"></i>
+                                            <!-- 修改点9: or 0 -> default:0 -->
+                                            {{ article.view_count|default:0 }} 次浏览
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-4 text-md-end">
+                                        <div class="btn-group-vertical" role="group">
+                                            <!-- 修改点10: url_for -> url -->
+                                            <a href="{% url 'webui:article_detail' article_id=article.id %}"
+                                               class="btn btn-sm btn-outline-primary mb-1">
+                                                <i class="fas fa-eye me-1"></i>查看详情
+                                            </a>
+
+                                            {% if article.digest %}
+                                                <!-- 修改点11: url_for -> url -->
+                                                <a href="{% url 'webui:digest_detail' article_id=article.id %}"
+                                                   class="btn btn-sm btn-success mb-1">
+                                                    <i class="fas fa-check me-1"></i>查看摘编
+                                                </a>
+                                            {% else %}
+                                                <!-- 修改点12: url_for -> url -->
+                                                <a href="{% url 'webui:digest_edit' article_id=article.id %}"
+                                                   class="btn btn-sm btn-outline-warning mb-1">
+                                                    <i class="fas fa-edit me-1"></i>创建摘编
+                                                </a>
+                                            {% endif %}
+
+                                            <a href="{{ article.url }}" target="_blank"
+                                               class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-external-link-alt me-1"></i>原文链接
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if articles|length == 50 %}
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        显示前50条搜索结果，如需查看更多，请使用更具体的关键词
+                    </div>
+                {% endif %}
+
+            {% else %}
+                <!-- 无搜索结果 -->
+                <div class="text-center py-5">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">未找到相关文章</h4>
+                    <p class="text-muted">没有找到包含 "{{ query }}" 的文章，请尝试其他关键词</p>
+
+                    <div class="mt-4">
+                        <h6>搜索建议：</h6>
+                        <ul class="list-unstyled text-muted">
+                            <li><i class="fas fa-lightbulb me-2"></i>尝试使用更简短的关键词</li>
+                            <li><i class="fas fa-lightbulb me-2"></i>检查关键词的拼写是否正确</li>
+                            <li><i class="fas fa-lightbulb me-2"></i>使用同义词或相关词汇</li>
+                            <li><i class="fas fa-lightbulb me-2"></i>尝试搜索智库名称或文章类型</li>
+                        </ul>
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <!-- 搜索提示 -->
+            <div class="text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">开始搜索</h4>
+                <p class="text-muted">在上方输入关键词来搜索文章</p>
+
+                <div class="mt-4">
+                    <h6>搜索功能：</h6>
+                    <div class="row justify-content-center">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled text-muted text-start">
+                                <li><i class="fas fa-check text-success me-2"></i>支持文章标题搜索</li>
+                                <li><i class="fas fa-check text-success me-2"></i>支持智库名称搜索</li>
+                                <li><i class="fas fa-check text-success me-2"></i>支持部分匹配</li>
+                                <li><i class="fas fa-clock text-warning me-2"></i>内容搜索功能开发中</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.highlight {
+    background-color: #fff3cd;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 搜索框自动聚焦
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.querySelector('input[name="q"]');
+    if (searchInput && !searchInput.value) {
+        searchInput.focus();
+    }
+});
+
+// 搜索历史功能（可选）
+function saveSearchHistory(query) {
+    if (!query.trim()) return;
+
+    let history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+
+    // 移除重复项
+    history = history.filter(item => item !== query);
+
+    // 添加到开头
+    history.unshift(query);
+
+    // 只保留最近10个搜索
+    history = history.slice(0, 10);
+
+    localStorage.setItem('searchHistory', JSON.stringify(history));
+}
+
+// 页面加载时保存搜索历史
+// 修改点13: 在 Django 模板中安全地传递变量到 JS
+document.addEventListener('DOMContentLoaded', function() {
+    // 使用 json_script 过滤器或直接在视图中传递更安全的 JS 变量是更好的做法
+    // 这里简单处理，假设 query 是安全的
+    const query = "{{ query|escapejs }}"; // escapejs 过滤器更安全
+    if (query) {
+        saveSearchHistory(query);
+    }
+});
+</script>
+{% endblock %}

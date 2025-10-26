@@ -1,0 +1,239 @@
+<!-- webui/templates/batch_digest.html -->
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}批量摘编 - 智库内容管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-edit me-2"></i>批量摘编
+    </h2>
+    <div class="text-muted">
+        共 {{ selected_count }} 篇文章
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>
+    请为每篇文章填写摘编内容，完成后点击"保存全部"
+</div>
+
+<form method="POST" id="batchDigestForm">
+    {% csrf_token %}
+    {% for item in digests %}
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">
+                {{ forloop.counter }}. {{ item.article.title }}
+                <span class="badge bg-primary ms-2">{{ item.article.thinktank.name }}</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            <!-- 双栏布局 -->
+            <div class="row">
+                <!-- 左侧：原文信息 -->
+                <div class="col-lg-6">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-file-text me-2"></i>原文信息</h6>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title">{{ item.article.title }}</h6>
+
+                            <div class="mb-3">
+                                <div class="row">
+                                    <div class="col-sm-4"><strong>来源:</strong></div>
+                                    <div class="col-sm-8">{{ item.article.thinktank.name }}</div>
+                                </div>
+                                {% if item.article.content_type %}
+                                <div class="row">
+                                    <div class="col-sm-4"><strong>类型:</strong></div>
+                                    <div class="col-sm-8">{{ item.article.content_type }}</div>
+                                </div>
+                                {% endif %}
+                                {% if item.article.author %}
+                                <div class="row">
+                                    <div class="col-sm-4"><strong>作者:</strong></div>
+                                    <div class="col-sm-8">{{ item.article.author }}</div>
+                                </div>
+                                {% endif %}
+                                {% if item.article.publish_date %}
+                                <div class="row">
+                                    <div class="col-sm-4"><strong>发布:</strong></div>
+                                    <div class="col-sm-8">
+                                        {{ item.article.publish_date|date:"Y-m-d" }}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            {% if item.article.summary %}
+                                <div class="mb-3">
+                                    <strong>原文摘要:</strong>
+                                    <div class="bg-light p-2 rounded mt-1 small">
+                                        {{ item.article.summary }}
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            <!-- 原文正文 -->
+                            <div class="mt-4">
+                                <h6><i class="fas fa-file-alt me-1"></i>原文正文</h6>
+                                <div class="bg-white border rounded p-3" style="max-height: 400px; overflow-y: auto; font-size: 14px; line-height: 1.6;">
+                                    {% if item.article.content %}
+                                        {{ item.article.content|safe }}
+                                    {% else %}
+                                        <div class="text-muted">暂无正文内容。</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2 mt-3">
+                                <a href="{% url 'webui:article_detail' article_id=item.article.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye me-1"></i>查看详情
+                                </a>
+                                <a href="{{ item.article.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-external-link-alt me-1"></i>原文链接
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧：摘编表单 -->
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-edit me-2"></i>编辑摘编
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <!-- 摘编摘要 -->
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-quote-left me-1"></i>摘编摘要 <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control" 
+                                          name="digest_summary_{{ item.article.id }}" 
+                                          rows="6" 
+                                          required 
+                                          placeholder="请输入文章的核心内容摘要...">{{ item.digest.digest_summary|default:'' }}</textarea>
+                                <div class="form-text">
+                                    对原文进行精炼总结，突出核心观点和主要内容
+                                </div>
+                            </div>
+
+                            <!-- 关键要点 -->
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-list-ul me-1"></i>关键要点
+                                </label>
+                                <textarea class="form-control" 
+                                          name="key_points_{{ item.article.id }}" 
+                                          rows="4" 
+                                          placeholder="请列出文章的关键要点，每行一个要点...">{{ item.digest.key_points|default:'' }}</textarea>
+                                <div class="form-text">
+                                    提取文章中的重要观点、数据或结论，建议每行一个要点
+                                </div>
+                            </div>
+
+                            <!-- 编辑备注 -->
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-sticky-note me-1"></i>编辑备注
+                                </label>
+                                <textarea class="form-control" 
+                                          name="editor_notes_{{ item.article.id }}" 
+                                          rows="3" 
+                                          placeholder="编辑过程中的备注信息（可选）...">{{ item.digest.editor_notes|default:'' }}</textarea>
+                                <div class="form-text">
+                                    记录编辑过程中的想法、疑问或其他备注信息
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 编辑提示 -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-lightbulb me-2"></i>编辑提示</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="small mb-0">
+                                <li>摘编摘要应简洁明了，突出文章的核心观点</li>
+                                <li>关键要点可以包括重要数据、结论、建议等</li>
+                                <li>保持客观中立，避免主观评价</li>
+                                <li>适当保留原文的专业术语和关键词</li>
+                                <li>字数建议：摘要200-500字，要点5-10条</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="d-flex justify-content-between">
+        <a href="{% url 'webui:batch_select' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>返回选择
+        </a>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>保存全部
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('batchDigestForm').addEventListener('submit', function(e) {
+    // 检查必填字段
+    const requiredTextareas = document.querySelectorAll('textarea[required]');
+    let hasEmpty = false;
+    
+    requiredTextareas.forEach(ta => {
+        if (!ta.value.trim()) {
+            hasEmpty = true;
+            ta.classList.add('is-invalid');
+        } else {
+            ta.classList.remove('is-invalid');
+        }
+    });
+
+    if (hasEmpty) {
+        e.preventDefault();
+        alert('请填写所有必填的摘编摘要！');
+        return false;
+    }
+});
+
+// 添加字数统计功能
+document.addEventListener('DOMContentLoaded', function() {
+    // 为每个摘编摘要添加字数统计
+    document.querySelectorAll('textarea[name^="digest_summary_"]').forEach(textarea => {
+        const counterDiv = document.createElement('div');
+        counterDiv.className = 'form-text text-end';
+        textarea.parentNode.appendChild(counterDiv);
+
+        function updateCounter() {
+            const count = textarea.value.length;
+            counterDiv.textContent = `已输入 ${count} 个字符`;
+
+            if (count > 1500) {
+                counterDiv.className = 'form-text text-end text-danger';
+            } else if (count > 1000) {
+                counterDiv.className = 'form-text text-end text-warning';
+            } else {
+                counterDiv.className = 'form-text text-end text-muted';
+            }
+        }
+
+        textarea.addEventListener('input', updateCounter);
+        updateCounter(); // 初始化计数
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,423 @@
+<!-- webui/templates/webui/admin.html -->
+{% extends "base.html" %}
+{% load static %} <!-- 如果模板中有用到静态文件 -->
+{% csrf_token %}
+{% block title %}任务管理 - 智库内容管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-cogs me-2"></i>爬取任务管理
+    </h2>
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
+            <i class="fas fa-sync-alt me-1"></i>刷新
+        </button>
+        <button type="button" class="btn btn-success" onclick="runAllTasks()" id="runAllBtn">
+            <i class="fas fa-play me-1"></i>运行所有任务
+        </button>
+    </div>
+</div>
+
+<div class="alert alert-info" role="alert">
+    <i class="fas fa-info-circle me-2"></i>
+    <strong>提示：</strong>爬虫功能需要安装 selenium 等依赖包才能正常运行。当前版本仅提供任务管理界面。
+</div>
+
+{% if tasks %}
+    <div class="row">
+        <!-- 修改点1: 使用 regroup 过滤器按智库分组 -->
+        {% regroup tasks by thinktank as thinktank_list %}
+        {% for thinktank_group in thinktank_list %}
+            <!-- 智库标题 -->
+            <div class="col-12 mb-3">
+                <h4 class="border-bottom pb-2">
+                    <i class="fas fa-building me-2"></i>{{ thinktank_group.grouper.name }} <!-- thinktank_group.grouper 是当前组的键，即 ThinkTank 对象 -->
+                </h4>
+            </div>
+            <div class="row"> <!-- 开始新的卡片组 -->
+                {% for task in thinktank_group.list %} <!-- thinktank_group.list 是属于当前组的所有任务 -->
+                    <!-- 任务卡片 -->
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100 {% if task.is_active %}border-success{% else %}border-secondary{% endif %}">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">{{ task.task_name }}</h6>
+                                <div class="form-check form-switch">
+                                    <!-- 修改点2: 为复选框添加 csrf_token -->
+                                    {% csrf_token %}
+                                    <input class="form-check-input task-toggle" type="checkbox"
+                                           id="task-{{ task.id }}"
+                                           data-task-id="{{ task.id }}"
+                                           {% if task.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="task-{{ task.id }}">
+                                        {% if task.is_active %}激活{% else %}禁用{% endif %}
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="card-body">
+                                <p class="card-text small text-muted mb-2">
+                                    <i class="fas fa-link me-1"></i>
+                                    <a href="{{ task.start_url }}" target="_blank" class="text-decoration-none">
+                                        <!-- 修改点3: [:50] -> truncatechars -->
+                                        {{ task.start_url|truncatechars:50 }}
+                                    </a>
+                                </p>
+
+                                <div class="mb-2">
+                                    <span class="badge bg-info">{{ task.crawler_type }}</span>
+                                    <span class="badge bg-secondary">{{ task.schedule_type }}</span>
+                                    {% if task.schedule_time %}
+                                        <span class="badge bg-warning text-dark">{{ task.schedule_time }}</span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- 运行状态 -->
+                                {% if task.last_run %}
+                                    <div class="small text-muted mb-2">
+                                        <i class="fas fa-clock me-1"></i>
+                                        <!-- 修改点4: strftime -> date 过滤器 -->
+                                        最后运行: {{ task.last_run|date:"Y-m-d H:i:s" }}
+                                    </div>
+
+                                    {% if task.last_run_status %}
+                                        <div class="mb-2">
+                                            {% if task.last_run_status == 'success' %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i>成功
+                                                </span>
+                                            {% elif task.last_run_status == 'failed' %}
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-times me-1"></i>失败
+                                                </span>
+                                            {% elif task.last_run_status == 'running' %}
+                                                <span class="badge bg-primary">
+                                                    <i class="fas fa-spinner fa-spin me-1"></i>运行中
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+
+                                    {% if task.last_run_message %}
+                                        <div class="small text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            <!-- 修改点5: [:100] -> truncatechars -->
+                                            {{ task.last_run_message|truncatechars:100 }}
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <div class="small text-muted">
+                                        <i class="fas fa-clock me-1"></i>从未运行
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="card-footer bg-transparent">
+                                <div class="d-grid gap-2">
+                                    <!-- 修改点6: 为按钮添加 csrf_token -->
+                                    {% csrf_token %}
+                                    <button class="btn btn-sm btn-primary run-task-btn"
+                                            data-task-id="{{ task.id }}"
+                                            {% if not task.is_active %}disabled{% endif %}>
+                                        <i class="fas fa-play me-1"></i>立即运行
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div> <!-- 结束当前智库的卡片组 -->
+        {% endfor %}
+    </div>
+
+{% else %}
+    <!-- 空状态 -->
+    <div class="text-center py-5">
+        <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
+        <h4 class="text-muted">暂无爬取任务</h4>
+        <p class="text-muted">请检查数据库初始化是否正常</p>
+    </div>
+{% endif %}
+
+<!-- 任务日志模态框 -->
+<div class="modal fade" id="logModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">任务执行日志</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="logContent" class="bg-dark text-light p-3" style="max-height: 400px; overflow-y: auto;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 在 JavaScript 中获取 CSRF token 的函数
+// function getCookie(name) {
+//     let cookieValue = null;
+//     if (document.cookie && document.cookie !== '') {
+//         const cookies = document.cookie.split(';');
+//         for (let i = 0; i < cookies.length; i++) {
+//             const cookie = cookies[i].trim();
+//             // Does this cookie string begin with the name we want?
+//             if (cookie.substring(0, name.length + 1) === (name + '=')) {
+//                 cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+//                 break;
+//             }
+//         }
+//     }
+//     return cookieValue;
+// }
+// const csrftoken = getCookie('csrftoken');
+const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+// 页面加载完成后绑定事件
+document.addEventListener('DOMContentLoaded', function() {
+    // 绑定任务状态切换事件
+    document.querySelectorAll('.task-toggle').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const taskId = parseInt(this.dataset.taskId);
+            toggleTask(taskId);
+        });
+    });
+
+    // 绑定运行任务按钮事件
+    document.querySelectorAll('.run-task-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const taskId = parseInt(this.dataset.taskId);
+            runSingleTask(taskId);
+        });
+    });
+
+    // 更新运行所有任务按钮状态
+    updateRunAllButtonState();
+});
+
+let progressInterval = null;
+
+function pollCrawlProgress() {
+    // 显示进度条（可选）
+    let progressBar = document.getElementById('globalProgressBar');
+    if (!progressBar) {
+        const container = document.querySelector('main .container');
+        const progressDiv = document.createElement('div');
+        progressDiv.id = 'globalProgressBar';
+        progressDiv.innerHTML = `
+            <div class="progress mt-3" style="height: 20px;">
+                <div class="progress-bar bg-info" role="progressbar" style="width: 0%;" id="progressBarFill">0%</div>
+            </div>
+            <small class="text-muted" id="progressStatus">准备中...</small>
+        `;
+        container.insertBefore(progressDiv, container.firstChild);
+        progressBar = progressDiv;
+    }
+
+    clearInterval(progressInterval);
+    progressInterval = setInterval(() => {
+        fetch("{% url 'webui:crawl_progress' %}")
+        .then(res => res.json())
+        .then(data => {
+            const fill = document.getElementById('progressBarFill');
+            const statusEl = document.getElementById('progressStatus');
+            fill.style.width = data.progress + '%';
+            fill.textContent = data.progress + '%';
+            statusEl.textContent = data.status;
+
+            // 完成或失败时停止轮询
+            if (data.progress >= 100 || data.status.startsWith('failed')) {
+                clearInterval(progressInterval);
+                setTimeout(() => {
+                    location.reload(); // 刷新页面看结果
+                }, 2000);
+            }
+        })
+        .catch(err => {
+            console.warn('轮询进度失败:', err);
+        });
+    }, 2000); // 每2秒查一次
+}
+
+// 切换任务状态
+function toggleTask(taskId) {
+    // 修改点7: 使用 Django URL names 和 CSRF token
+    fetch("{% url 'webui:toggle_task' task_id=0 %}".replace('0', taskId), { // 替换占位符
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken // 添加 CSRF token
+        },
+        body: JSON.stringify({}) // 发送空的 JSON body
+    })
+    .then(response => {
+        if (response.ok) {
+             return response.json();
+        } else {
+             throw new Error('Network response was not ok.');
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            // 更新标签
+            const label = document.querySelector(`label[for="task-${taskId}"]`);
+            const runButton = document.querySelector(`button[data-task-id="${taskId}"]`);
+
+            if (data.is_active) {
+                label.textContent = '激活';
+                runButton.disabled = false;
+            } else {
+                label.textContent = '禁用';
+                runButton.disabled = true;
+            }
+
+            // 显示成功消息
+            showAlert('success', '任务状态更新成功');
+            // 更新运行所有任务按钮状态
+            updateRunAllButtonState();
+        } else {
+            showAlert('danger', '更新失败: ' + data.message);
+            // 恢复复选框状态
+            const checkbox = document.getElementById(`task-${taskId}`);
+            checkbox.checked = !checkbox.checked;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', '网络错误，请稍后重试');
+        // 恢复复选框状态
+        const checkbox = document.getElementById(`task-${taskId}`);
+        checkbox.checked = !checkbox.checked;
+    });
+}
+
+// 运行单个任务
+function runSingleTask(taskId) {
+    const button = document.querySelector(`button[data-task-id="${taskId}"]`);
+    const originalText = button.innerHTML;
+
+    // 显示加载状态
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>运行中...';
+    button.disabled = true;
+
+    // 修改点8: 使用 Django URL names 和 CSRF token
+    fetch("{% url 'webui:run_task' task_id=0 %}".replace('0', taskId), { // 替换占位符
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken // 添加 CSRF token
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json(); // 期望返回 JSON
+        } else {
+             throw new Error('Network response was not ok.');
+        }
+    })
+    .then(data => {
+         if (data.success) {
+             showAlert('info', data.message || '任务已提交执行');
+             // 3秒后刷新页面
+             setTimeout(() => {
+                 location.reload();
+             }, 3000);
+         } else {
+             showAlert('danger', data.message || '任务执行失败');
+         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', '网络错误，请稍后重试');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 2000);
+    });
+}
+
+// 运行所有任务
+function runAllTasks() {
+    if (!confirm('确定要运行所有激活的爬取任务吗？\n这可能需要几分钟时间。')) {
+        return;
+    }
+
+    const button = document.getElementById('runAllBtn');
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>启动中...';
+    button.disabled = true;
+
+    // 先触发启动
+    fetch("{% url 'webui:run_all_tasks' %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('info', '任务已启动，正在后台执行...');
+            // 开始轮询进度
+            pollCrawlProgress();
+        } else {
+            showAlert('danger', data.message);
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-play me-1"></i>运行所有任务';
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        showAlert('danger', '启动失败');
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-play me-1"></i>运行所有任务';
+    });
+}
+
+// 显示警告消息 (保持不变)
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    const container = document.querySelector('main .container');
+    if (container) {
+         container.insertBefore(alertDiv, container.firstChild);
+    }
+
+    // 5秒后自动隐藏
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            // Bootstrap 5 使用 data-bs-dismiss
+            const bsAlert = new bootstrap.Alert(alertDiv);
+            bsAlert.close();
+        }
+    }, 5000);
+}
+
+// 更新"运行所有任务"按钮状态 (保持不变或微调)
+function updateRunAllButtonState() {
+    const runAllBtn = document.getElementById('runAllBtn');
+    // 重新查询所有激活的复选框
+    const activeTasks = document.querySelectorAll('.task-toggle:checked').length;
+
+    if (activeTasks > 0) {
+        runAllBtn.disabled = false;
+        runAllBtn.title = `运行 ${activeTasks} 个激活的任务`;
+    } else {
+        runAllBtn.disabled = true;
+        runAllBtn.title = '没有激活的任务';
+    }
+}
+
+</script>
+{% endblock %}

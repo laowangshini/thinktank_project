@@ -1,0 +1,198 @@
+<!-- webui/templates/webui/base.html -->
+<!DOCTYPE html>
+{% load static %} <!-- 加载静态文件标签 -->
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}智库内容管理系统{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <!-- 修改点1: 修正 CDN 链接末尾的多余空格 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            color: #007bff !important;
+        }
+
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            transition: box-shadow 0.15s ease-in-out;
+        }
+
+        .card:hover {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+
+        .article-title {
+            color: #333;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .article-title:hover {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .text-muted {
+            font-size: 0.875rem;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+        }
+
+        .footer {
+            background-color: #343a40;
+            color: white;
+            padding: 2rem 0;
+            margin-top: 3rem;
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <!-- 修改点2: url_for -> url -->
+            <!-- 假设 'webui' 是你在 webui/urls.py 中定义的 app_name -->
+            <a class="navbar-brand" href="{% url 'webui:index' %}">
+                <i class="fas fa-university me-2"></i>智库内容管理系统
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <!-- 修改点3: url_for -> url -->
+                        <a class="nav-link" href="{% url 'webui:index' %}">
+                            <i class="fas fa-home me-1"></i>首页
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <!-- 修改点4: url_for -> url -->
+                        <a class="nav-link" href="{% url 'webui:articles' %}">
+                            <i class="fas fa-newspaper me-1"></i>文章列表
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <!-- 修改点5: url_for -> url -->
+                        <a class="nav-link" href="{% url 'webui:thinktanks' %}">
+                            <i class="fas fa-building me-1"></i>智库列表
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'webui:tasks' %}">
+                            <i class="fas fa-cogs me-1"></i>任务管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'admin:index' %}" class="nav-link">
+                            <i class="fas fa-database me-1"></i>进入 Django
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- 搜索框 -->
+                <!-- 修改点7: url_for -> url -->
+                <!-- 修改点8: request.args.get -> 假设视图传递了 'query' 变量 -->
+                <form class="d-flex" method="GET" action="{% url 'webui:search' %}">
+                    <input class="form-control me-2" type="search" name="q" placeholder="搜索文章..." value="{{ query|default:'' }}">
+                    <button class="btn btn-outline-light" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <main class="container my-4">
+        <!-- Flash消息 -->
+        <!-- 修改点9: get_flashed_messages -> Django messages -->
+        <!-- Django 的消息框架会自动将消息放入 context 中，通常名为 'messages' -->
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer mt-auto">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>智库内容管理系统</h5>
+                    <p class="mb-0">专业的智库内容爬取、管理和摘编平台</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="mb-0">© 2025 智库内容管理系统. 保留所有权利.</p>
+                    <p class="mb-0">
+                        <small class="text-muted">
+                            当前时间: <span id="current-time"></span>
+                        </small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <!-- 修改点10: 修正 CDN 链接末尾的多余空格 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+
+    <script>
+        // 更新当前时间
+        function updateTime() {
+            const now = new Date();
+            // 修改点11: toLocaleString 在 JS 中可用，保持不变
+            const timeString = now.toLocaleString('zh-CN');
+            document.getElementById('current-time').textContent = timeString;
+        }
+
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // 自动隐藏alert
+        // 修改点12: 确保 Bootstrap 5 的 Alert 类可用
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                // Bootstrap 5 使用 data-bs-dismiss
+                const bsAlert = new bootstrap.Alert(alert);
+                // bsAlert.close(); // 不需要立即关闭，setTimeout 已经在延迟后执行
+            });
+        }, 5000);
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
